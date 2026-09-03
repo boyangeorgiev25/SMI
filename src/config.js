@@ -45,9 +45,9 @@ export const CONFIG = {
   // "Send to Boyan" button so the booking lands on your phone.
   whatsappNumber: "32492934892",
 
-  // Optional: Google Maps JS API key (needs Google Cloud billing).
-  // Leave empty to use the free OpenStreetMap map instead.
-  googleMapsApiKey: "AIzaSyDZ_PVMXo3tWbSBcYXL2Nt4q2KDY_ZquKE",
+  // Optional: Google Maps JS API key — set VITE_GOOGLE_MAPS_API_KEY in .env
+  // (needs Google Cloud billing). Empty → the free OpenStreetMap map is used.
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
 
   // "Time together" counter: counts from togetherFrom, freezes at
   // pausedFrom (the breakup, exact moment). Set resumedFrom when you're
