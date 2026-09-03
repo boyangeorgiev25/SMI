@@ -1520,3 +1520,6 @@ input::-webkit-date-and-time-value {
   touch-action: none;
   cursor: pointer;
 }
+
+.sync-warn { border: 1px solid rgba(255, 170, 60, 0.6); }
+.sync-warn .sub { margin: 6px 0 0; text-align: left; }

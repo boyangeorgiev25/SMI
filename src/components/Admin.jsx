@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAll, clearAll, getResumedFrom, clearResumedFrom, syncFromServer } from "../storage.js";
+import { getAll, clearAll, getResumedFrom, clearResumedFrom, syncFromServer, getSyncStatus } from "../storage.js";
 import { CONFIG } from "../config.js";
 import { formatDate } from "./Activities.jsx";
 import { mapsLink, allActivities, locText } from "./Done.jsx";
@@ -31,10 +31,12 @@ export default function Admin() {
   const [data, setData] = useState(getAll());
   const [resumedAt, setResumedAt] = useState(getResumedFrom());
   const [tab, setTab] = useState("stats");
+  const [sync, setSync] = useState(getSyncStatus());
 
   function refresh() {
     setData(getAll());
     setResumedAt(getResumedFrom());
+    setSync(getSyncStatus());
   }
 
   // always show the server's copy, not this tab's possibly stale one
@@ -65,6 +67,17 @@ export default function Admin() {
   return (
     <div className="screen admin">
       <h1>🕵️ Админ — само за {CONFIG.yourName}</h1>
+
+      {sync.ok === false && (
+        <div className="card summary-card sync-warn">
+          <b>⚠️ Няма връзка с общото хранилище</b>
+          <p className="sub">
+            {sync.isRemote
+              ? "VITE_DATA_URL не отговаря — провери адреса и правилата на базата."
+              : "Това е хостнат билд без сървър: данните остават на нейния телефон и не стигат до теб. Задай VITE_DATA_URL в .env (виж .env.example) и билдни отново."}
+          </p>
+        </div>
+      )}
 
       <div className="admin-tabs">
         {TABS.map((t) => (

@@ -16,7 +16,7 @@ function dataApi() {
         res.setHeader('Content-Type', 'application/json')
         if (req.method === 'GET') {
           res.end(fs.existsSync(DATA_FILE) ? fs.readFileSync(DATA_FILE, 'utf8') : EMPTY)
-        } else if (req.method === 'POST') {
+        } else if (req.method === 'POST' || req.method === 'PUT') {
           let body = ''
           req.on('data', (c) => { body += c })
           req.on('end', () => {

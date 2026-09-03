@@ -1,5 +1,20 @@
 const KEY = "date-booking-data";
 
+// Where the shared copy lives. In `npm run dev` the Vite plugin in
+// vite.config.js serves /api/data from data.json on this machine. For a
+// hosted build there is no such server, so set VITE_DATA_URL in .env to a
+// hosted JSON endpoint (e.g. a Firebase Realtime Database URL ending in
+// .json) — see .env.example.
+const REMOTE = import.meta.env.VITE_DATA_URL || "/api/data";
+// Most stores replace the document on PUT; npoint.io only accepts POST.
+const WRITE_METHOD = REMOTE.includes("npoint.io") ? "POST" : "PUT";
+
+// true / false after the first sync attempt, null before it
+let lastSyncOk = null;
+export function getSyncStatus() {
+  return { ok: lastSyncOk, url: REMOTE, isRemote: REMOTE !== "/api/data" };
+}
+
 function load() {
   try {
     return JSON.parse(localStorage.getItem(KEY)) || { attempts: [], bookings: [], prizes: [] };
@@ -12,24 +27,27 @@ function save(data) {
   localStorage.setItem(KEY, JSON.stringify(data));
   // push to the shared server store so every device sees it
   // (keepalive so time-tracking flushes survive tab close)
-  return fetch("/api/data", {
-    method: "POST",
+  return fetch(REMOTE, {
+    method: WRITE_METHOD, // PUT replaces the whole document (Firebase POST would append a child)
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
     keepalive: true,
-  }).catch(() => {});
+  })
+    .then((r) => { lastSyncOk = r.ok; })
+    .catch(() => { lastSyncOk = false; });
 }
 
 // pull the server copy (source of truth) into localStorage before the app renders
 export async function syncFromServer() {
   try {
-    const r = await fetch("/api/data");
+    const r = await fetch(REMOTE, { cache: "no-store" });
+    lastSyncOk = r.ok;
     if (!r.ok) return;
-    const remote = await r.json();
+    const remote = await r.json(); // Firebase returns null for an empty path
     if (remote && Array.isArray(remote.bookings)) {
       localStorage.setItem(KEY, JSON.stringify(remote));
     }
-  } catch { /* offline / static hosting — stay on local data */ }
+  } catch { lastSyncOk = false; /* offline / static hosting — stay on local data */ }
 }
 
 // every write re-pulls the server copy first, so a tab with stale data
