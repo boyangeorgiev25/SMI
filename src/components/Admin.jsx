@@ -74,7 +74,7 @@ export default function Admin() {
           <p className="sub">
             {sync.isRemote
               ? "VITE_DATA_URL не отговаря — провери адреса и правилата на базата."
-              : "Това е хостнат билд без сървър: данните остават на нейния телефон и не стигат до теб. Задай VITE_DATA_URL в .env (виж .env.example) и билдни отново."}
+              : "Данните остават на нейния телефон и не стигат до теб. Във Vercel: проектът → Storage → Create Database → Upstash Redis → Connect, после Redeploy."}
           </p>
         </div>
       )}

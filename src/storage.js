@@ -1,24 +1,23 @@
 const KEY = "date-booking-data";
 
-// Where the shared copy lives. In `npm run dev` the Vite plugin in
-// vite.config.js serves /api/data from data.json on this machine. For a
-// hosted build there is no such server, so set VITE_DATA_URL in .env to a
-// hosted JSON endpoint (e.g. a Firebase Realtime Database URL ending in
-// .json) — see .env.example.
-const REMOTE = import.meta.env.VITE_DATA_URL || "/api/data";
-// Most stores replace the document on PUT; npoint.io only accepts POST.
-const IS_NPOINT = REMOTE.includes("npoint.io");
-const WRITE_METHOD = IS_NPOINT ? "POST" : "PUT";
-// npoint accepts text/plain bodies; that makes the write a "simple" CORS
-// request (no preflight), which keeps keepalive flushes reliable on tab close.
-const WRITE_TYPE = IS_NPOINT ? "text/plain" : "application/json";
+// Where the shared copy lives. /api/data is served by the Vite plugin in
+// vite.config.js during `npm run dev` (writes data.json) and by the Vercel
+// function in api/data.js on the hosted site (Upstash Redis). VITE_DATA_URL
+// can point at another JSON endpoint instead (e.g. Firebase, see .env.example).
+// npoint.io URLs are ignored: its reads are CDN-cached for an hour and its
+// origin took 20-30 s per uncached read, which left phones on a blank screen.
+const CUSTOM = import.meta.env.VITE_DATA_URL || "";
+const REMOTE = CUSTOM && !CUSTOM.includes("npoint.io") ? CUSTOM : "/api/data";
+const WRITE_METHOD = "PUT";
+const WRITE_TYPE = "application/json";
 
-// npoint (and other CDN-fronted stores) cache GETs for up to an hour, so a
-// plain read after a write can return the OLD document and the next write
-// would silently drop the new data. A unique query string forces a fresh read.
+// A unique query string defeats any CDN/browser cache in front of the store.
 function readUrl() {
   return REMOTE + (REMOTE.includes("?") ? "&" : "?") + "t=" + Date.now();
 }
+
+// Never let a slow store hold the app hostage: reads give up after this.
+const READ_TIMEOUT_MS = 6000;
 
 // true / false after the first sync attempt, null before it
 let lastSyncOk = null;
@@ -51,7 +50,7 @@ function save(data) {
 // pull the server copy (source of truth) into localStorage before the app renders
 export async function syncFromServer() {
   try {
-    const r = await fetch(readUrl(), { cache: "no-store" });
+    const r = await fetch(readUrl(), { cache: "no-store", signal: AbortSignal.timeout(READ_TIMEOUT_MS) });
     lastSyncOk = r.ok;
     if (!r.ok) return;
     const remote = await r.json(); // Firebase returns null for an empty path
