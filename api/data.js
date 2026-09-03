@@ -7,11 +7,18 @@
 const KEY = "smi-data";
 const EMPTY = { attempts: [], bookings: [], prizes: [] };
 
+// The Vercel ↔ Upstash integration names its variables <PREFIX>_REST_API_URL
+// and <PREFIX>_REST_API_TOKEN (prefix chosen when connecting, e.g. KV or
+// STORAGE). Upstash's own console uses UPSTASH_REDIS_REST_URL/_TOKEN.
+// Accept any of them so the prefix doesn't matter.
 function redis() {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  return { url: url.replace(/\/$/, ""), headers: { Authorization: `Bearer ${token}` } };
+  const env = process.env;
+  const urlKey = Object.keys(env).find((k) => /(_REST_API_URL|REDIS_REST_URL)$/.test(k) && /^https?:\/\//.test(env[k] || ""));
+  if (!urlKey) return null;
+  const tokenKey = urlKey.replace(/URL$/, "TOKEN");
+  const token = env[tokenKey];
+  if (!token) return null;
+  return { url: env[urlKey].replace(/\/$/, ""), headers: { Authorization: `Bearer ${token}` } };
 }
 
 async function readBody(req) {
