@@ -7,7 +7,18 @@ const KEY = "date-booking-data";
 // .json) — see .env.example.
 const REMOTE = import.meta.env.VITE_DATA_URL || "/api/data";
 // Most stores replace the document on PUT; npoint.io only accepts POST.
-const WRITE_METHOD = REMOTE.includes("npoint.io") ? "POST" : "PUT";
+const IS_NPOINT = REMOTE.includes("npoint.io");
+const WRITE_METHOD = IS_NPOINT ? "POST" : "PUT";
+// npoint accepts text/plain bodies; that makes the write a "simple" CORS
+// request (no preflight), which keeps keepalive flushes reliable on tab close.
+const WRITE_TYPE = IS_NPOINT ? "text/plain" : "application/json";
+
+// npoint (and other CDN-fronted stores) cache GETs for up to an hour, so a
+// plain read after a write can return the OLD document and the next write
+// would silently drop the new data. A unique query string forces a fresh read.
+function readUrl() {
+  return REMOTE + (REMOTE.includes("?") ? "&" : "?") + "t=" + Date.now();
+}
 
 // true / false after the first sync attempt, null before it
 let lastSyncOk = null;
@@ -29,7 +40,7 @@ function save(data) {
   // (keepalive so time-tracking flushes survive tab close)
   return fetch(REMOTE, {
     method: WRITE_METHOD, // PUT replaces the whole document (Firebase POST would append a child)
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": WRITE_TYPE },
     body: JSON.stringify(data),
     keepalive: true,
   })
@@ -40,7 +51,7 @@ function save(data) {
 // pull the server copy (source of truth) into localStorage before the app renders
 export async function syncFromServer() {
   try {
-    const r = await fetch(REMOTE, { cache: "no-store" });
+    const r = await fetch(readUrl(), { cache: "no-store" });
     lastSyncOk = r.ok;
     if (!r.ok) return;
     const remote = await r.json(); // Firebase returns null for an empty path
